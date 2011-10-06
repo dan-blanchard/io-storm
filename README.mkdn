@@ -1,0 +1,42 @@
+# NAME
+
+IO::Storm - Perl support for Twitter's Storm
+
+# VERSION
+
+version 0.01
+
+# SYNOPSIS
+
+    package SplitSentenceBolt;
+    use Moose;
+
+    extends 'Storm::BasicBolt';
+
+    sub process {
+        my ($self, $tuple) = @_;
+
+        my @words = split(' ', $tuple->values->[0]);
+        foreach my $word (@words) {
+
+            $self->emit([ $word ]);
+        }
+    }
+
+    SplitSentenceBolt->new->run;
+
+# DESCRIPTION
+
+IO::Storm allows you to leverage Storm's multilang support to write Bolts
+(and someday, more!) in Perl.
+
+# AUTHOR
+
+Cory G Watson <gphat@cpan.org>
+
+# COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2011 by Infinity Interacive, Inc.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.

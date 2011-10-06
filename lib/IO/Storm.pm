@@ -7,7 +7,7 @@ use JSON::XS qw(decode_json encode_json);
 use Log::Log4perl;
 use Storm::Tuple;
 
-# ABSTRACT : Perl support for Twitter's Storm
+# ABSTRACT: Perl support for Twitter's Storm
 
 my $logger = Log::Log4perl->get_logger('storm');
 
