@@ -7,9 +7,37 @@ use JSON::XS qw(decode_json encode_json);
 use Log::Log4perl;
 use Storm::Tuple;
 
+# ABSTRACT : Perl support for Twitter's Storm
+
 my $logger = Log::Log4perl->get_logger('storm');
 
-has 'stdin' => (
+=head1 DESCRIPTION
+
+IO::Storm allows you to leverage Storm's multilang support to write Bolts
+(and someday, more!) in Perl.
+
+=head1 SYNOPSIS
+
+    package SplitSentenceBolt;
+    use Moose;
+
+    extends 'Storm::BasicBolt';
+
+    sub process {
+        my ($self, $tuple) = @_;
+
+        my @words = split(' ', $tuple->values->[0]);
+        foreach my $word (@words) {
+
+            $self->emit([ $word ]);
+        }
+    }
+
+    SplitSentenceBolt->new->run;
+
+=cut
+
+has '_stdin' => (
     is => 'rw',
     default => sub {
         my $io = IO::Handle->new;
@@ -23,7 +51,7 @@ sub read_string_message {
     my @messages = ();
     while(1) {
         $logger->debug("reading");
-        my $line = $self->stdin->getline;
+        my $line = $self->_stdin->getline;
         chomp($line);
         $logger->debug("got $line");
         if($line eq 'end') {
