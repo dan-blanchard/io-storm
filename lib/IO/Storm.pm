@@ -14,7 +14,7 @@ my $logger = Log::Log4perl->get_logger('storm');
 =head1 DESCRIPTION
 
 IO::Storm allows you to leverage Storm's multilang support to write Bolts
-(and someday, more!) in Perl.
+(and someday, more) in Perl.
 
 =head1 SYNOPSIS
 
