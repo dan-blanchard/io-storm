@@ -37,6 +37,12 @@ IO::Storm allows you to leverage Storm's multilang support to write Bolts
 
 =cut
 
+has '_anchor' => (
+    is => 'rw',
+    isa => 'Storm::Tuple',
+    predicate => '_has_anchor'
+);
+
 has '_stdin' => (
     is => 'rw',
     default => sub {
@@ -50,7 +56,7 @@ sub read_string_message {
 
     my @messages = ();
     while(1) {
-        $logger->debug("reading");
+        $logger->debug('reading');
         my $line = $self->_stdin->getline;
         chomp($line);
         $logger->debug("got $line");
@@ -78,14 +84,14 @@ sub send_to_parent {
     my ($self, $s) = @_;
 
     $logger->debug("sending $s");
-    print "$s\n";;
-    $logger->debug("sending end");
+    print "$s\n";
+    $logger->debug('sending end');
     print "end\n";
 }
 
 sub sync {
     my ($self) = @_;
-    $logger->debug("sending sync");
+    $logger->debug('sending sync');
     print "sync\n";
 }
 
@@ -101,27 +107,20 @@ sub send_pid {
     $fh->open('> '.$hbdir.'/'.$pid);
     $fh->close;
     
-    $logger->debug("### wrote pid to $hbdir/$pid");    
+    $logger->debug("wrote pid to $hbdir/$pid");
 }
 
 sub emit_tuple {
     my ($self, $tuple, $stream, $anchors, $direct_task) = @_;
     
-    # global ANCHOR_TUPLE
-    # if ANCHOR_TUPLE is not None:
-    #     anchors = [ANCHOR_TUPLE]
-    # m = {"command": "emit"}
-    # if stream is not None:
-    #     m["stream"] = stream
-    # m["anchors"] = map(lambda a: a.id, anchors)
-    # if directTask is not None:
-    #     m["task"] = directTask
-    # m["tuple"] = tup
-    # sendMsgToParent(m)
-
     my %message = ( command => 'emit' );
     if(defined($stream)) {
         $message{stream} = $stream;
+    }
+    if($self->_has_anchor) {
+        # The python implementation maps this, but just works with a single
+        # anchor.  Perhaps it was there for some other feature?
+        $message{anchors} = [ $self->_anchor->id ];
     }
     if(defined($direct_task)) {
         $message{task} = $direct_task;
@@ -163,7 +162,7 @@ sub log {
 
 sub read_env {
     my ($self) = @_;
-    $logger->debug("### read_env");
+    $logger->debug('read_env');
     my $conf = $self->read_message;
     my $context = $self->read_message;
     
@@ -189,7 +188,7 @@ sub init_bolt {
     
     autoflush STDOUT 1;
     
-    $logger->debug("init_bolt");
+    $logger->debug('init_bolt');
     my $hbdir = $self->read_string_message;
     $self->send_pid($hbdir);
     return $self->read_env;
