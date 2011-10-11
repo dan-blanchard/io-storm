@@ -1,7 +1,7 @@
 package IO::Storm::BasicBolt;
 use Moose;
 
-extends 'Storm';
+extends 'IO::Storm';
 
 use Log::Log4perl;
 

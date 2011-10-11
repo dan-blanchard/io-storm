@@ -5,7 +5,7 @@ use IO::Handle qw(autoflush);
 use IO::File;
 use JSON::XS qw(decode_json encode_json);
 use Log::Log4perl;
-use Storm::Tuple;
+use IO::Storm::Tuple;
 
 # ABSTRACT: Perl support for Twitter's Storm
 
@@ -39,7 +39,7 @@ IO::Storm allows you to leverage Storm's multilang support to write Bolts
 
 has '_anchor' => (
     is => 'rw',
-    isa => 'Storm::Tuple',
+    isa => 'IO::Storm::Tuple',
     predicate => '_has_anchor'
 );
 
@@ -133,7 +133,6 @@ sub emit {
     my ($self, $tuple, $stream, $anchors) = @_;
     
     $anchors = [];
-    
     $self->emit_tuple($tuple, $stream, $anchors);
     return $self->read_message;
 }
@@ -174,7 +173,7 @@ sub read_tuple {
 
     my $tupmap = $self->read_message;
 
-    return Storm::Tuple->new(
+    return IO::Storm::Tuple->new(
         id      => $tupmap->{id},
         component => $tupmap->{comp},
         stream  => $tupmap->{stream},
