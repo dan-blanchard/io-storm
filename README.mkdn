@@ -30,6 +30,68 @@ version 0.01
 IO::Storm allows you to leverage Storm's multilang support to write Bolts
 (and someday, more) in Perl.
 
+# METHODS
+
+## read_string_message
+
+Read a message from the ShellBolt.  Reads until it finds a "end" line.
+
+## read_message
+
+Read a message from the ShellBolt and decode it from JSON.
+
+## send_message_to_parent
+
+Sent a message to the ShellBolt, encoding it as JSON.
+
+## send_to_parent
+
+Send a message to the ShellBolt.
+
+## sync
+
+Send a sync.
+
+## send_pid
+
+Send this processes PID.
+
+## emit_tuple
+
+Send a tuple to the ShellBolt.
+
+## emit
+
+Emit a tuple to the the ShellBolt and return the response.
+
+## emit_direct
+
+Emit a tuple to the Shell bolt, but do not get a response.
+
+## ack
+
+Acknowledge a tuple.
+
+## fail
+
+Fail a tuple.
+
+## log
+
+Send a log command to the ShellBolt
+
+## read_env
+
+Read the configuration and context from the ShellBolt.
+
+## read_tuple
+
+Turn the incoming Tuple structure into an [IO::Storm::Tuple](http://search.cpan.org/perldoc?IO::Storm::Tuple).
+
+## init_bolt
+
+Initialize this bolt.
+
 # AUTHOR
 
 Cory G Watson <gphat@cpan.org>
