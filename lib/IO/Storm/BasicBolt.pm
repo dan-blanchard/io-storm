@@ -7,22 +7,31 @@ use Log::Log4perl;
 
 my $logger = Log::Log4perl->get_logger('storm.basicbolt');
 
-sub process {
-    my ($self, $tuple) = @_;
+sub initialize {
+    my ( $self, $conf, $context ) = @_;
 }
-    
+
+sub process {
+    my ( $self, $tuple ) = @_;
+}
+
 sub run {
     my ($self) = @_;
-    # XXX
+    $self->mode('bolt');
 
-    my ($conf, $context) = $self->init_bolt;
-    while(1) {
+    # XXX
+    $logger->debug('BasicBolt->run');
+
+    my ( $conf, $context ) = $self->init_component;
+    $self->initialize( $conf, $context );
+
+    while (1) {
         my $tup = $self->read_tuple;
         $self->_anchor($tup);
         $self->process($tup);
         $self->ack($tup);
-        $self->sync;
     }
+    $logger->debug('run: end');
 }
 
 1;
