@@ -69,9 +69,6 @@ stdout_is(\&test_send_message_to_parent, '{"test":"test"}'."\nend\n", 'send_mess
 sub test_sync { $storm->sync; }
 stdout_is(\&test_sync, '{"command":"sync"}'."\nend\n", 'sync() returns right output');
 
-# send_pid
-sub test_send_pid { $storm->send_pid('./'); }
-stdout_is(\&test_send_pid, '{"pid":"'.$$.'"}'."\nend\n", 'send_pid() returns right output');
 # cleanup pid file
 unlink($$);
 

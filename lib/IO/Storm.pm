@@ -172,7 +172,7 @@ sub read_handshake {
 
 =method send_message
 
-Send a message to the ShellBolt, encoding it as JSON.
+Send a message to Storm, encoding it as JSON.
 
 =cut
 
@@ -196,7 +196,7 @@ sub sync {
 
 =method log
 
-Send a log command to the ShellBolt
+Send a log command to Storm
 
 =cut
 

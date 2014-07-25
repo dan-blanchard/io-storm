@@ -74,9 +74,9 @@ Emit a tuple to a stream.
 :param stream: the ID of the stream to emit this tuple to. Specify
                ``undef`` to emit to default stream.
 :type stream: scalar
-:param anchors: IDs of the tuples (or the Tuple instances) which the emitted
-                tuples should be anchored to. If ``auto_anchor`` is set and
-                you have not specified ``anchors``, ``anchors`` will be
+:param anchors: IDs of the tuples (or the <IO::Storm::Tuple> instances) which
+                the emitted tuples should be anchored to. If ``auto_anchor`` is
+                set and you have not specified ``anchors``, ``anchors`` will be
                 set to the incoming/most recent tuple ID(s).
 :type anchors: arrayref
 :param direct_task: the task to send the tuple to.
