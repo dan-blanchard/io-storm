@@ -15,11 +15,6 @@ use IO::Storm::Tuple;
 use Moo;
 use namespace::clean;
 
-has 'mode' => (
-    is      => 'rw',
-    default => 'bolt',
-);
-
 has '_pending_commands' => (
     is      => 'rw',
     default => sub { [] },
@@ -38,11 +33,22 @@ has '_stdin' => (
     }
 );
 
-my $MAX_BLANK_MSGS = 500;
-my $MAX_LINES      = 100;
+has 'max_lines' => (
+    is      => 'rw',
+    default => 100
+);
+
+has 'max_blank_msgs' => (
+    is      => 'rw',
+    default => 500
+);
+
+has '_json' => (
+    is      => 'rw',
+    default => sub { JSON::XS->new->allow_blessed->convert_blessed }
+);
 
 my $logger = Log::Log4perl->get_logger('storm');
-my $json = JSON::XS->new->allow_blessed->convert_blessed;
 
 =method read_message
 
@@ -71,20 +77,21 @@ sub read_message {
         # we have to assume that the pipe to the Storm supervisor is broken
         if ( $line eq '' ) {
             $blank_lines++;
-            if ( $blank_lines >= $MAX_BLANK_MSGS ) {
+            if ( $blank_lines >= $self->max_blank_msgs ) {
                 die( "$blank_lines blank lines received, assuming pipe to "
                         . "Storm supervisor is broken" );
             }
         }
-        elsif ( $lines >= $MAX_LINES ) {
-            die
-                "Message exceeds $MAX_LINES lines, assuming this is an error.";
+        elsif ( $lines >= $self->max_lines ) {
+            die "Message exceeds "
+                . $self->max_lines
+                . " lines, assuming this is an error.";
         }
 
         push( @messages, $line );
     }
 
-    return $json->decode( join( "\n", @messages ) );
+    return $self->_json->decode( join( "\n", @messages ) );
 }
 
 sub read_task_ids {
@@ -179,7 +186,7 @@ Send a message to Storm, encoding it as JSON.
 
 sub send_message {
     my ( $self, $msg ) = @_;
-    say $json->encode($msg);
+    say $self->_json->encode($msg);
     say "end";
 }
 

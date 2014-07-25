@@ -17,10 +17,12 @@ use Test::MockObject;
 use Test::More;
 use Test::Output;
 use Log::Log4perl qw(:easy);
+use JSON::XS;
 Log::Log4perl->easy_init($ERROR);
 
 my $stdin = Test::MockObject->new();
 my @stdin_retval = ();
+my $json = JSON::XS->new->allow_blessed->convert_blessed->canonical;
 
 $stdin->mock( 'getline', sub { return shift(@stdin_retval); } );
 
@@ -28,7 +30,7 @@ BEGIN { use_ok('IO::Storm'); }
 
 ### Component tests
 
-my $component = IO::Storm->new({_stdin=>$stdin});
+my $component = IO::Storm->new({_stdin=>$stdin, _json=>$json});
 my $result;
 
 # Test read_message with simple data
@@ -46,14 +48,14 @@ $result = $component->read_task_ids;
 is ( ref($result), 'ARRAY', 'read_task_ids() returns array');
 
 # read_command
-$component = IO::Storm->new({_stdin=>$stdin});
+$component = IO::Storm->new({_stdin=>$stdin, _json=>$json});
 push(@stdin_retval, '{"test":"test0"}');
 push(@stdin_retval, 'end');
 $result = $component->read_command;
 is ( ref($result), 'HASH', 'read_command() returns array');
 
 # read_tuple
-$component = IO::Storm->new({_stdin=>$stdin});
+$component = IO::Storm->new({_stdin=>$stdin, _json=>$json});
 push(@stdin_retval, '{"id":"test_id","stream":"test_stream","comp":"test_comp","tuple":["test"],"task":"test_task"}');
 push(@stdin_retval, 'end');
 push(@stdin_retval, '[2]');
@@ -90,7 +92,7 @@ unlink($$);
 ### Bolt tests
 
 BEGIN { use_ok('IO::Storm::Bolt'); }
-my $bolt = IO::Storm::Bolt->new({_stdin=>$stdin});
+my $bolt = IO::Storm::Bolt->new({_stdin=>$stdin, _json=>$json});
 
 # ack
 sub test_ack { $bolt->ack($tuple); }
@@ -113,7 +115,7 @@ unlink($$);
 ### Spout tests
 
 BEGIN { use_ok('IO::Storm::Spout'); }
-my $spout = IO::Storm::Spout->new({_stdin=>$stdin});
+my $spout = IO::Storm::Spout->new({_stdin=>$stdin, _json=>$json});
 
 # emit
 push(@stdin_retval, '[2]');
