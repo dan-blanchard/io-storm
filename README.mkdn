@@ -1,104 +1,164 @@
 # NAME
 
-IO::Storm - Perl support for Twitter's Storm
+IO::Storm - Perl support for Apache Storm
 
 # VERSION
 
-version 0.01
+version 0.02
 
 # SYNOPSIS
 
-    package SplitSentenceBolt;
-    use Moose;
+```perl
+package SplitSentenceBolt;
 
-    extends 'Storm::BasicBolt';
+use Moo;
+use namespace::clean;
 
-    sub process {
-        my ($self, $tuple) = @_;
+extends 'Storm::Bolt';
 
-        my @words = split(' ', $tuple->values->[0]);
-        foreach my $word (@words) {
+sub process {
+    my ($self, $tuple) = @_;
 
-            $self->emit([ $word ]);
-        }
+    my @words = split(' ', $tuple->values->[0]);
+    foreach my $word (@words) {
+
+        $self->emit([ $word ]);
     }
+}
 
-    SplitSentenceBolt->new->run;
+SplitSentenceBolt->new->run;
+```
 
 # DESCRIPTION
 
-IO::Storm allows you to leverage Storm's multilang support to write Bolts
-(and someday, more) in Perl.
+IO::Storm allows you to leverage Storm's multilang support to write Bolts and
+Spouts in Perl.  As of version 0.02, the API is designed to very closely mirror
+that of the [Streamparse Python library](http://streamparse.readthedocs.org/en/latest/api.html).  The exception being that we don't currently support
+the `BatchingBolt` class or the `emit_many` methods.
 
-# METHODS
+# Bolts
 
-## read_string_message
+To create a Bolt, you want to extend the `Storm::Bolt` class.
 
-Read a message from the ShellBolt.  Reads until it finds a "end" line.
+```perl
+package SplitSentenceBolt;
 
-## read_message
+use Moo;
+use namespace::clean;
 
-Read a message from the ShellBolt and decode it from JSON.
+extends 'Storm::Bolt';
+```
 
-## send_message_to_parent
+## Processing tuples
 
-Sent a message to the ShellBolt, encoding it as JSON.
+To have your bolt start processing tuples, you want to override the `process`
+method, which takes a `IO::Storm::Tuple` as its only argument.  This method
+should do any processing you want to perform on the tuple and then `emit` its
+output.
 
-## send_to_parent
+```perl
+sub process {
+    my ($self, $tuple) = @_;
 
-Send a message to the ShellBolt.
+    my @words = split(' ', $tuple->values->[0]);
+    foreach my $word (@words) {
 
-## sync
+        $self->emit([ $word ]);
+    }
+}
+```
 
-Send a sync.
+To actually start your bolt, call the `run` method, which will initialize the
+bolt and start the event loop.
 
-## send_pid
+```perl
+SplitSentenceBolt->new->run;
+```
 
-Send this processes PID.
 
-## emit_tuple
+## Automatic reliability
 
-Send a tuple to the ShellBolt.
+By default, the Bolt will automatically handle acks, anchoring, and
+failures.  If you would like to customize the behavior of any of these things,
+you will need to set the `auto_anchor`, `auto_anchor`, or `auto_fail`
+attributes to 0.  For more information about Storm's guaranteed message
+processing, please [see their documentation](https://storm.incubator.apache.org/documentation/Guaranteeing-message-processing.html#what-is-storms-reliability-api).
 
-## emit
 
-Emit a tuple to the the ShellBolt and return the response.
+# Spouts
 
-## emit_direct
+To create a Spout, you want to extend the `Storm::Spout` class.
 
-Emit a tuple to the Shell bolt, but do not get a response.
+```perl
+package WordSpout;
 
-## ack
+use Moo;
+use namespace::clean;
 
-Acknowledge a tuple.
+extends 'Storm::Spout';
+```
 
-## fail
+## Emitting tuples
 
-Fail a tuple.
+To actually emit anything on your spout, you have to implement the `next_tuple`
+method.
 
-## log
+```perl
+my $sentences = ["a little brown dog",
+                 "the man petted the dog",
+                 "four score and seven years ago",
+                 "an apple a day keeps the doctor away",];
+my $num_sentences = scalar(@$sentences);
 
-Send a log command to the ShellBolt
+sub next_tuple {
+    my ($self) = @_;
 
-## read_env
+    $self->emit( [ $sentences->[ rand($num_sentences) ] ] );
+}
+```
 
-Read the configuration and context from the ShellBolt.
+# Methods supported by Spouts and Bolts
 
-## read_tuple
+## Custom initialization
 
-Turn the incoming Tuple structure into an [IO::Storm::Tuple](http://search.cpan.org/perldoc?IO::Storm::Tuple).
+If you need to have some custom action happen when your component is being
+initialized, just override `initialize` method, which receives the Storm
+configuration for the component and information itss place in the topology as
+its arguments.
 
-## init_bolt
+```perl
+sub initialize {
+    my ( $self, $storm_conf, $context ) = @_;
+}
+```
 
-Initialize this bolt.
+## Logging
 
-# AUTHOR
+Use the `log` method to send messages back to the Storm ShellBolt parent
+process which will be added to the general Storm log.
 
-Cory G Watson <gphat@cpan.org>
+```perl
+sub process {
+    my ($self, $tuple) = @_;
+
+    ...
+
+    $self->log("Working on $tuple");
+
+    ...
+}
+```
+
+# AUTHORS
+
+[Dan Blanchard](mailto:dblanchard@ets.org)
+[Cory G Watson](mailto:gphat@cpan.org)
+
+Credit should also be given to all of the [Streamparse](https://github.com/Parsely/streamparse) developers for designing the current API.
 
 # COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011 by Infinity Interactive, Inc.
+This software is copyright (c) 2011-2014 by Infinity Interactive, Inc.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
