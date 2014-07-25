@@ -51,7 +51,7 @@ extends 'Storm::Bolt';
 
 ## Processing tuples
 
-To have your bolt start processing tuples, you want to override the `process`
+To have your Bolt start processing tuples, you want to override the `process`
 method, which takes a `IO::Storm::Tuple` as its only argument.  This method
 should do any processing you want to perform on the tuple and then `emit` its
 output.
@@ -68,7 +68,7 @@ sub process {
 }
 ```
 
-To actually start your bolt, call the `run` method, which will initialize the
+To actually start your Bolt, call the `run` method, which will initialize the
 bolt and start the event loop.
 
 ```perl
@@ -90,7 +90,7 @@ processing, please [see their documentation](https://storm.incubator.apache.org/
 To create a Spout, you want to extend the `Storm::Spout` class.
 
 ```perl
-package WordSpout;
+package SentenceSpout;
 
 use Moo;
 use namespace::clean;
@@ -100,7 +100,7 @@ extends 'Storm::Spout';
 
 ## Emitting tuples
 
-To actually emit anything on your spout, you have to implement the `next_tuple`
+To actually emit anything on your Spout, you have to implement the `next_tuple`
 method.
 
 ```perl
@@ -116,6 +116,14 @@ sub next_tuple {
     $self->emit( [ $sentences->[ rand($num_sentences) ] ] );
 }
 ```
+
+To actually start your Spout, call the `run` method, which will initialize the
+Spout and start the event loop.
+
+```perl
+SentenceSpout->new->run;
+```
+
 
 # Methods supported by Spouts and Bolts
 
