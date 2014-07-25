@@ -148,19 +148,18 @@ process which will be added to the general Storm log.
 ```perl
 sub process {
     my ($self, $tuple) = @_;
-
     ...
-
     $self->log("Working on $tuple");
-
     ...
 }
 ```
 
 # AUTHORS
 
-[Dan Blanchard](mailto:dblanchard@ets.org)
-[Cory G Watson](mailto:gphat@cpan.org)
+Alphabetical, by last name:
+
+- [Dan Blanchard](mailto:dblanchard@ets.org) ([@dsblanch](https://twitter.com/dsblanch))
+- [Cory G Watson](mailto:gphat@cpan.org)
 
 Credit should also be given to all of the [Streamparse](https://github.com/Parsely/streamparse) developers for designing the current API.
 
