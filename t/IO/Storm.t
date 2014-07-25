@@ -70,7 +70,7 @@ is ( $tuple->id, 'test_id', 'read_tuple->id returns test_id');
 push(@stdin_retval, '{"pidDir":"./","conf":"test_conf","context":"test_context"}');
 push(@stdin_retval, 'end');
 sub test_read_handshake { $result = $component->read_handshake; }
-stdout_is(\&test_read_handshake, '{"pid":"'.$$.'"}'."\nend\n", 'read_handshake() returns right output');
+stdout_is(\&test_read_handshake, '{"pid":'.$$.'}'."\nend\n", 'read_handshake() returns right output');
 is ( @{$result}[0], 'test_conf', 'read_handshake returns correct conf');
 is ( @{$result}[1], 'test_context', 'read_handshake returns correct context');
 

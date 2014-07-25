@@ -140,7 +140,7 @@ sub ack {
     else {
         $tup_id = $tuple;
     }
-    $self->send_message( { command => 'ack', id => int($tup_id) } );
+    $self->send_message( { command => 'ack', id => $tup_id } );
 }
 
 =method fail
@@ -159,7 +159,7 @@ sub fail {
         $tup_id = $tuple;
     }
 
-    $self->send_message( { command => 'fail', id => int($tup_id) } );
+    $self->send_message( { command => 'fail', id => $tup_id } );
 }
 
 =method run
