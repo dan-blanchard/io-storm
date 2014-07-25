@@ -174,8 +174,8 @@ sub read_handshake {
     open my $fh, '>', $filename
         or die "Cant't write to '$filename': $!\n";
     $fh->close;
-    $self->send_message( { pid => $pid } );
-    $logger->debug('Process ID sent to Storm');
+    $logger->debug('Sending process ID $pid to Storm');
+    $self->send_message( { pid => int($pid) } );
 
     return [ $msg->{conf}, $msg->{context} ];
 }
