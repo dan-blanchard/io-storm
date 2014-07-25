@@ -1,5 +1,8 @@
 package IO::Storm::Tuple;
-use Moose;
+
+# Setup Moo for object-oriented niceties
+use Moo;
+use namespace::clean;
 
 has 'id' => ( is => 'rw' );
 

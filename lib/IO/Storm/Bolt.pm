@@ -1,27 +1,208 @@
 package IO::Storm::Bolt;
-use Moose;
+
+# Imports
+use strict;
+use warnings;
+use v5.10;
+use Try::Tiny;
+
+# Setup Moo for object-oriented niceties
+use Moo;
+use namespace::clean;
 
 extends 'IO::Storm';
 
-use Log::Log4perl;
+# A boolean indicating whether or not the bolt should automatically
+# anchor emits to the incoming tuple ID. Tuple anchoring is how Storm
+# provides reliability, you can read more about tuple anchoring in Storm's
+# docs:
+# https://storm.incubator.apache.org/documentation/Guaranteeing-message-processing.html#what-is-storms-reliability-api
+has 'auto_anchor' => (
+    is      => 'ro',
+    default => 1
+);
 
-my $logger = Log::Log4perl->get_logger('storm.bolt');
+# A boolean indicating whether or not the bolt should automatically
+# acknowledge tuples after ``process()`` is called.
+has 'auto_ack' => (
+    is      => 'ro',
+    default => 1
+);
+
+# A boolean indicating whether or not the bolt should automatically fail
+# tuples when an exception occurs when the ``process()`` method is called.
+has 'auto_fail' => (
+    is      => 'ro',
+    default => 1
+);
+
+# Using a list so Bolt and subclasses can have more than one current_tup
+has '_current_tups' => (
+    is       => 'rw',
+    default  => sub { [] },
+    init_arg => undef
+);
+
+=method initialize
+
+Called immediately after the initial handshake with Storm and before the main
+run loop. A good place to initialize connections to data sources.
+
+=cut
+
+sub initialize {
+    my ( $self, $storm_conf, $context ) = @_;
+}
+
+=method process
+
+Process a single tuple of input. This should be overriden by subclasses
+
+=cut
 
 sub process {
     my ( $self, $tuple ) = @_;
 }
 
+=method emit
+
+Emit a tuple to a stream.
+
+:param tuple: the Tuple payload to send to Storm, should contain only
+            JSON-serializable data.
+:type tuple: arrayref
+:param stream: the ID of the stream to emit this tuple to. Specify
+               ``undef`` to emit to default stream.
+:type stream: scalar
+:param anchors: IDs of the tuples (or the Tuple instances) which the emitted
+                tuples should be anchored to. If ``auto_anchor`` is set and
+                you have not specified ``anchors``, ``anchors`` will be
+                set to the incoming/most recent tuple ID(s).
+:type anchors: arrayref
+:param direct_task: the task to send the tuple to.
+:type direct_task: scalar
+
+=cut
+
+sub emit {
+    my ( $self, $tuple, $args ) = @_;
+
+    my $msg = { command => 'emit', tuple => $tuple };
+
+    my $anchors;
+    if ( $self->auto_anchor ) {
+        $anchors = $self->_current_tups;
+    }
+    else {
+        $anchors = [];
+    }
+
+    if ( defined($args) ) {
+
+        # Add anchors to message if specified
+        if ( defined( $args->{anchors} ) && scalar( @{ $args->{anchors} } ) )
+        {
+            my $a;
+            for $a ( @{ $args->{anchors} } ) {
+                if ( ref($a) eq 'Tuple' ) {
+                    $a = $a->id;
+                }
+                push( @$anchors, $a );
+            }
+        }
+
+        if ( defined( $args->{stream} ) ) {
+            $msg->{stream} = $args->{stream};
+        }
+
+        if ( defined( $args->{direct_task} ) ) {
+            $msg->{task} = $args->{direct_task};
+        }
+
+        $self->send_message($msg);
+    }
+}
+
+=method ack
+
+Acknowledge a tuple. Argument can be either a Tuple or an ID.
+
+=cut
+
+sub ack {
+    my ( $self, $tuple ) = @_;
+    my $tup_id;
+    if ( ref($tuple) eq "Tuple" ) {
+        $tup_id = $tuple->id;
+    }
+    else {
+        $tup_id = $tuple;
+    }
+    $self->send_message( { command => 'ack', id => $tup_id } );
+}
+
+=method fail
+
+Fail a tuple. Argument can be either a Tuple or an ID.
+
+=cut
+
+sub fail {
+    my ( $self, $tuple ) = @_;
+    my $tup_id;
+    if ( ref($tuple) eq "Tuple" ) {
+        $tup_id = $tuple->id;
+    }
+    else {
+        $tup_id = $tuple;
+    }
+
+    $self->send_message( { command => 'fail', id => $tup_id } );
+}
+
+=method run
+
+Main run loop for all bolts.
+
+Performs initial handshake with Storm and reads tuples handing them off
+to subclasses.  Any exceptions are caught and logged back to Storm
+prior to the Perl process exiting.
+
+Subclasses should **not** override this method.
+
+=cut
+
 sub run {
     my ($self) = @_;
+    my $tup;
 
-    my ( $conf, $context ) = $self->init_component;
-    $self->initialize( $conf, $context );
+    my ( $storm_conf, $context ) = $self->read_handshake();
+    $self->initialize( $storm_conf, $context );
 
-    while (1) {
-        my $tup = $self->readtuple;
-        $self->process($tup);
-        $self->sync;
+    try {
+        while (1) {
+            $tup = $self->read_tuple();
+            $self->_current_tups( [$tup] );
+            $self->process($tup);
+            if ( $self->auto_ack ) {
+                $self->ack($tup);
+            }
+
+            # reset so that we don't accidentally fail the wrong tuples
+            # if a successive call to read_tuple fails
+            $self->_current_tups( [] );
+        }
     }
+    catch {
+        my $error = $_;
+        if ( $self->auto_fail && scalar( @{ $self->_current_tups } ) ) {
+            for $tup ( @{ self->_current_tups } ) {
+                $self->fail($tup);
+            }
+        }
+        $self->log("Bolt encountered exception: $_");
+        die("Encounter exception in Bolt: $_");
+    };
 }
 
 1;

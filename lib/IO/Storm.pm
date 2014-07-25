@@ -1,36 +1,32 @@
 package IO::Storm;
-use Moose;
 
-use Data::Dumper;
+# Imports
+use strict;
+use warnings;
+use v5.10;
 use IO::Handle qw(autoflush);
 use IO::File;
+use Log::Log4perl qw(:easy);
 use JSON::XS qw(decode_json encode_json);
-use Log::Log4perl;
 
-my $logger = Log::Log4perl->get_logger('storm');
 use IO::Storm::Tuple;
+
+# Setup Moo for object-oriented niceties
+use Moo;
+use namespace::clean;
 
 has 'mode' => (
     is      => 'rw',
-    isa     => 'Str',
     default => 'bolt',
-);
-
-has '_anchor' => (
-    is        => 'rw',
-    isa       => 'IO::Storm::Tuple',
-    predicate => '_has_anchor'
 );
 
 has '_pending_commands' => (
     is      => 'rw',
-    isa     => 'ArrayRef',
     default => sub { [] },
 );
 
 has '_pending_taskids' => (
     is      => 'rw',
-    isa     => 'ArrayRef',
     default => sub { [] },
 );
 
@@ -42,6 +38,11 @@ has '_stdin' => (
     }
 );
 
+my $MAX_BLANK_MSGS = 500;
+my $MAX_LINES      = 100;
+
+my $logger = Log::Log4perl->get_logger('storm');
+
 =method read_message
 
 Read a message from the ShellBolt.  Reads until it finds a "end" line.
@@ -50,7 +51,10 @@ Read a message from the ShellBolt.  Reads until it finds a "end" line.
 
 sub read_message {
     $logger->debug('start read_message');
-    my $self = shift;
+    my $self         = shift;
+    my $lines        = 0;
+    my $blank_lines  = 0;
+    my $message_size = 0;
 
     my @messages = ();
     while (1) {
@@ -60,6 +64,22 @@ sub read_message {
         if ( $line eq 'end' ) {
             last;
         }
+        $lines++;
+
+        # If Storm starts to send us a series of blank lines, after awhile
+        # we have to assume that the pipe to the Storm supervisor is broken
+        if ( $line eq '' ) {
+            $blank_lines++;
+            if ( $blank_lines >= $MAX_BLANK_MSGS ) {
+                die( "$blank_lines blank lines received, assuming pipe to "
+                        . "Storm supervisor is broken" );
+            }
+        }
+        elsif ( $lines >= $MAX_LINES ) {
+            die
+                "Message exceeds $MAX_LINES lines, assuming this is an error.";
+        }
+
         push( @messages, $line );
     }
 
@@ -73,10 +93,10 @@ sub read_task_ids {
         return shift( $self->_pending_taskids );
     }
     else {
-        my $msg = $self->read_message;
+        my $msg = $self->read_message();
         while ( ref($msg) ne 'ARRAY' ) {
             push( $self->_pending_commands, $msg );
-            $msg = $self->read_message;
+            $msg = $self->read_message();
         }
 
         return $msg;
@@ -90,10 +110,10 @@ sub read_command {
         return shift( $self->_pending_commands );
     }
     else {
-        my $msg = $self->read_message;
+        my $msg = $self->read_message();
         while ( ref($msg) eq 'ARRAY' ) {
             push( $self->_pending_taskids, $msg );
-            $msg = $self->read_message;
+            $msg = $self->read_message();
         }
         return $msg;
     }
@@ -109,7 +129,7 @@ sub read_tuple {
     my $self = shift;
     $logger->debug('read_tuple');
 
-    my $tupmap = $self->read_command;
+    my $tupmap = $self->read_command();
 
     return IO::Storm::Tuple->new(
         id        => $tupmap->{id},
@@ -120,45 +140,58 @@ sub read_tuple {
     );
 }
 
-=method send_message_to_parent
+=method read_handshake
 
-Sent a message to the ShellBolt, encoding it as JSON.
+Read and process an initial handshake message from Storm
 
 =cut
 
-sub send_message_to_parent {
+sub read_handshake {
     my $self = shift;
-    my $msg  = shift;
 
-    $self->_send_to_parent( encode_json($msg) );
+    # TODO: Figure out how to redirect stdout to ensure that print
+    # statements/functions won't crash the Storm Java worker
+
+    autoflush STDOUT 1;
+
+    my $msg = $self->read_message();
+    $logger->debug( 'Received initial handshake from Storm: %r', $msg );
+
+    # Write a blank PID file out to the pidDir
+    my $pid      = $$;
+    my $pid_dir  = $msg->{pidDir};
+    my $filename = $pid_dir . '/' . $pid;
+    open my $fh, '>', $filename
+        or die "Cant't write to '$filename': $!\n";
+    $fh->close;
+    $self->send_message( { pid => $pid } );
+    $logger->debug('Process ID sent to Storm');
+
+    return [ $msg->{conf}, $msg->{context} ];
 }
+
+=method send_message
+
+Send a message to the ShellBolt, encoding it as JSON.
+
+=cut
+
+sub send_message {
+    my ( $self, $msg ) = @_;
+    say encode_json($msg);
+    say "end";
+}
+
+=method sync
+
+Send a sync command to Storm.
+
+=cut
 
 sub sync {
     my $self = shift;
 
-    $self->send_message_to_parent( { command => 'sync' } );
-}
-
-=method send_pid
-
-Send this processes PID.
-
-=cut
-
-sub send_pid {
-    my $self  = shift;
-    my $hbdir = shift;
-
-    my $pid = $$;
-
-    $self->send_message_to_parent( { pid => $pid } );
-    $logger->debug("send_pid: sent $pid");
-
-    # XXX error handling
-    my $filename = $hbdir . '/' . $pid;
-    open my $fh, '>', $filename
-      or die "Cant't write to '$filename': $!\n";
-    $fh->close;
+    $self->send_message( { command => 'sync' } );
 }
 
 =method emit_direct
@@ -208,7 +241,7 @@ sub emit_bolt {
 
     $message{tuple} = $tuple;
     $logger->debug("emit_bolt: tuple $tuple");
-    $self->send_message_to_parent( \%message );
+    $self->send_message( \%message );
 }
 
 =method emit_spout
@@ -237,53 +270,7 @@ sub emit_spout {
 
     $message{tuple} = $tuple;
     $logger->debug("emit_spout: tuple $tuple");
-    $self->send_message_to_parent( \%message );
-}
-
-=method emit
-
-Emit a tuple to the ShellBolt or ShellSpout and return the response.
-
-=cut
-
-sub emit {
-    my $self = shift;
-    my $args = shift;
-
-    if ( $self->mode eq 'bolt' ) {
-        $self->emit_bolt($args);
-    }
-    elsif ( $self->mode eq 'spout' ) {
-        $self->emit_spout($args);
-    }
-
-    return $self->read_task_ids;
-}
-
-=method ack
-
-Acknowledge a tuple.
-
-=cut
-
-sub ack {
-    my $self  = shift;
-    my $tuple = shift;
-
-    $self->send_message_to_parent( { command => 'ack', id => $tuple->id } );
-}
-
-=method fail
-
-Fail a tuple.
-
-=cut
-
-sub fail {
-    my $self  = shift;
-    my $tuple = shift;
-
-    $self->send_message_to_parent( { command => 'fail', id => $tuple->id } );
+    $self->send_message( \%message );
 }
 
 =method log
@@ -296,40 +283,7 @@ sub log {
     my $self    = shift;
     my $message = shift;
 
-    $self->send_message_to_parent( { command => 'log', msg => $message } );
-}
-
-=method init_bolt
-
-Initialize this bolt.
-
-=cut
-
-sub init_component {
-    my $self = shift;
-
-    autoflush STDOUT 1;
-
-    my $setup_info = $self->read_message;
-
-    $self->send_pid( $setup_info->{pidDir} );
-
-    return [ $setup_info->{conf}, $setup_info->{context} ];
-}
-
-=method _send_to_parent
-
-private method that sends message to ShellBolt
-
-=cut
-
-sub _send_to_parent {
-    my ( $self, $s ) = @_;
-
-    $logger->debug("sending $s");
-    print "$s\n";
-    $logger->debug('sending end');
-    print "end\n";
+    $self->send_message( { command => 'log', msg => $message } );
 }
 
 1;
