@@ -1,3 +1,5 @@
+# ABSTRACT: The base class for all IO::Storm Spout.
+
 package IO::Storm::Spout;
 
 use Moo;

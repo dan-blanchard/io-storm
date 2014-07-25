@@ -1,3 +1,5 @@
+# ABSTRACT: Storm's primitive data type passed around via streams.
+
 package IO::Storm::Tuple;
 
 # Setup Moo for object-oriented niceties

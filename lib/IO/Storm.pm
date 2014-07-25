@@ -1,3 +1,5 @@
+# ABSTRACT: IO::Storm allows you to write Bolts and Spouts for Storm in Perl.
+
 package IO::Storm;
 
 # Imports

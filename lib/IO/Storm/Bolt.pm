@@ -1,3 +1,5 @@
+# ABSTRACT: The base class for all IO::Storm Bolts.
+
 package IO::Storm::Bolt;
 
 # Imports
