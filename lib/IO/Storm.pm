@@ -7,7 +7,7 @@ use v5.10;
 use IO::Handle qw(autoflush);
 use IO::File;
 use Log::Log4perl qw(:easy);
-use JSON::XS qw(decode_json encode_json);
+use JSON::XS;
 
 use IO::Storm::Tuple;
 
@@ -42,6 +42,7 @@ my $MAX_BLANK_MSGS = 500;
 my $MAX_LINES      = 100;
 
 my $logger = Log::Log4perl->get_logger('storm');
+my $json = JSON::XS->new->allow_blessed->convert_blessed;
 
 =method read_message
 
@@ -83,7 +84,7 @@ sub read_message {
         push( @messages, $line );
     }
 
-    return decode_json( join( "\n", @messages ) );
+    return $json->decode( join( "\n", @messages ) );
 }
 
 sub read_task_ids {
@@ -178,7 +179,7 @@ Send a message to Storm, encoding it as JSON.
 
 sub send_message {
     my ( $self, $msg ) = @_;
-    say encode_json($msg);
+    say $json->encode($msg);
     say "end";
 }
 

@@ -84,7 +84,7 @@ Emit a tuple to a stream.
 
 =cut
 
-sub emit {
+sub emit ($$;$) {
     my ( $self, $tuple, $args ) = @_;
 
     my $msg = { command => 'emit', tuple => $tuple };
@@ -132,7 +132,7 @@ Acknowledge a tuple. Argument can be either a Tuple or an ID.
 sub ack {
     my ( $self, $tuple ) = @_;
     my $tup_id;
-    if ( ref($tuple) eq "Tuple" ) {
+    if ( ref($tuple) eq "IO::Storm::Tuple" ) {
         $tup_id = $tuple->id;
     }
     else {
@@ -150,7 +150,7 @@ Fail a tuple. Argument can be either a Tuple or an ID.
 sub fail {
     my ( $self, $tuple ) = @_;
     my $tup_id;
-    if ( ref($tuple) eq "Tuple" ) {
+    if ( ref($tuple) eq "IO::Storm::Tuple" ) {
         $tup_id = $tuple->id;
     }
     else {

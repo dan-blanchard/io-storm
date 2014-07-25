@@ -14,4 +14,15 @@ has 'task' => ( is => 'rw' );
 
 has 'values' => ( is => 'rw' );
 
+sub TO_JSON {
+    my ($self) = @_;
+    return {
+        id        => $self->id,
+        component => $self->component,
+        stream    => $self->stream,
+        task      => $self->task,
+        values    => $self->values
+    };
+}
+
 1;

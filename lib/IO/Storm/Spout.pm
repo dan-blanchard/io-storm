@@ -71,7 +71,7 @@ Emit a spout tuple message.
 :type direct_task: int
 =cut
 
-sub emit {
+sub emit ($$;$) {
     my ( $self, $tuple, $args ) = @_;
 
     my $msg = { command => 'emit', tuple => $tuple };
