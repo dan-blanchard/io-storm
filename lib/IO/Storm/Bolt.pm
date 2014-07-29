@@ -20,21 +20,21 @@ extends 'IO::Storm';
 # docs:
 # https://storm.incubator.apache.org/documentation/Guaranteeing-message-processing.html#what-is-storms-reliability-api
 has 'auto_anchor' => (
-    is      => 'ro',
+    is      => 'rw',
     default => 1
 );
 
 # A boolean indicating whether or not the bolt should automatically
 # acknowledge tuples after ``process()`` is called.
 has 'auto_ack' => (
-    is      => 'ro',
+    is      => 'rw',
     default => 1
 );
 
 # A boolean indicating whether or not the bolt should automatically fail
 # tuples when an exception occurs when the ``process()`` method is called.
 has 'auto_fail' => (
-    is      => 'ro',
+    is      => 'rw',
     default => 1
 );
 

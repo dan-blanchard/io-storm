@@ -10,7 +10,7 @@ use IO::Handle qw(autoflush);
 use IO::File;
 use Log::Log4perl qw(:easy);
 use JSON::XS;
-
+use Data::Dumper;
 use IO::Storm::Tuple;
 
 # Setup Moo for object-oriented niceties
@@ -90,8 +90,9 @@ Add helpful instance variables to component after initial handshake with Storm.
 
 sub _setup_component {
     my ( $self, $storm_conf, $context ) = @_;
+    my $conf_is_hash = ref($storm_conf) eq ref {};
     $self->_topology_name(
-        exists( $storm_conf->{'topology.name'} )
+        ( $conf_is_hash && exists( $storm_conf->{'topology.name'} ))
         ? $storm_conf->{'topology.name'}
         : ''
     );
@@ -104,7 +105,7 @@ sub _setup_component {
         }
     }
     $self->_debug(
-        exists( $storm_conf->{'topology.debug'} )
+        ($conf_is_hash && exists( $storm_conf->{'topology.debug'} ))
         ? $storm_conf->{'topology.debug'}
         : 0
     );
@@ -128,7 +129,14 @@ sub read_message {
     my @messages = ();
     while (1) {
         $line = $self->_stdin->getline;
-        $logger->debug( 'read_message: line=' . $line );
+        if ( defined($line) ) {
+            $logger->debug("read_message: line=$line");
+        }
+        else {
+            $logger->error( "Received EOF while trying to read stdin from "
+                    . "Storm, pipe appears to be broken, exiting." );
+            exit(1);
+        }
         if ( $line eq "end\n" ) {
             last;
         }
@@ -220,9 +228,11 @@ sub read_handshake {
     # statements/functions won't crash the Storm Java worker
 
     autoflush STDOUT 1;
+    autoflush STDERR 1;
 
     my $msg = $self->read_message();
-    $logger->debug( 'Received initial handshake from Storm: %r', $msg );
+    $logger->debug(
+        sub { 'Received initial handshake from Storm: ' . Dumper($msg) } );
 
     # Write a blank PID file out to the pidDir
     my $pid      = $$;
@@ -231,7 +241,7 @@ sub read_handshake {
     open my $fh, '>', $filename
         or die "Cant't write to '$filename': $!\n";
     $fh->close;
-    $logger->debug('Sending process ID $pid to Storm');
+    $logger->debug("Sending process ID $pid to Storm");
     $self->send_message( { pid => int($pid) } );
 
     return [ $msg->{conf}, $msg->{context} ];
