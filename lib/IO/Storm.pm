@@ -50,7 +50,67 @@ has '_json' => (
     default => sub { JSON::XS->new->allow_blessed->convert_blessed }
 );
 
+has '_topology_name' => (
+    is        => 'rw',
+    init_args => undef
+);
+
+has '_task_id' => (
+    is        => 'rw',
+    init_args => undef
+);
+
+has '_component_name' => (
+    is        => 'rw',
+    init_args => undef
+);
+
+has '_debug' => (
+    is        => 'rw',
+    init_args => undef
+);
+
+has '_storm_conf' => (
+    is        => 'rw',
+    init_args => undef
+);
+
+has '_context' => (
+    is        => 'rw',
+    init_args => undef
+);
+
 my $logger = Log::Log4perl->get_logger('storm');
+
+=method _setup_component
+
+Add helpful instance variables to component after initial handshake with Storm.
+
+=cut
+
+sub _setup_component {
+    my ( $self, $storm_conf, $context ) = @_;
+    $self->_topology_name(
+        exists( $storm_conf->{'topology.name'} )
+        ? $storm_conf->{'topology.name'}
+        : ''
+    );
+    $self->_task_id( exists( $context->{taskid} ) ? $context->{taskid} : '' );
+    $self->_component_name('');
+    if ( exists( $context->{'task->component'} ) ) {
+        my $task_component = $context->{'task->component'};
+        if ( exists( $task_component->{ $self->_task_id } ) ) {
+            $self->_component_name( $task_component->{ $self->_task_id } );
+        }
+    }
+    $self->_debug(
+        exists( $storm_conf->{'topology.debug'} )
+        ? $storm_conf->{'topology.debug'}
+        : 0
+    );
+    $self->_storm_conf($storm_conf);
+    $self->_context($context);
+}
 
 =method read_message
 
@@ -61,35 +121,32 @@ Read a message from the ShellBolt.  Reads until it finds a "end" line.
 sub read_message {
     $logger->debug('start read_message');
     my $self         = shift;
-    my $lines        = 0;
     my $blank_lines  = 0;
     my $message_size = 0;
+    my $line         = '';
 
     my @messages = ();
     while (1) {
-        my $line = $self->_stdin->getline;
+        $line = $self->_stdin->getline;
         $logger->debug( 'read_message: line=' . $line );
-        chomp($line);
-        if ( $line eq 'end' ) {
+        if ( $line eq "end\n" ) {
             last;
         }
-        $lines++;
-
-        # If Storm starts to send us a series of blank lines, after awhile
-        # we have to assume that the pipe to the Storm supervisor is broken
-        if ( $line eq '' ) {
+        elsif ( $line eq '' ) {
+            $logger->error( "Received EOF while trying to read stdin from "
+                    . "Storm, pipe appears to be broken, exiting." );
+            exit(1);
+        }
+        elsif ( $line eq "\n" ) {
             $blank_lines++;
-            if ( $blank_lines >= $self->max_blank_msgs ) {
-                die( "$blank_lines blank lines received, assuming pipe to "
-                        . "Storm supervisor is broken" );
+            if ( $blank_lines % 1000 == 0 ) {
+                $logger->warn( "While trying to read a command or pending "
+                        . "task ID, Storm has instead sent $blank_lines "
+                        . "'\\n' messages." );
+                next;
             }
         }
-        elsif ( $lines >= $self->max_lines ) {
-            die "Message exceeds "
-                . $self->max_lines
-                . " lines, assuming this is an error.";
-        }
-
+        chomp($line);
         push( @messages, $line );
     }
 
@@ -99,7 +156,7 @@ sub read_message {
 sub read_task_ids {
     my $self = shift;
 
-    if ( @{ $self->_pending_taskids } ) {
+    if ( scalar( @{ $self->_pending_taskids } ) ) {
         return shift( $self->_pending_taskids );
     }
     else {

@@ -91,6 +91,13 @@ sub emit ($$;$) {
     }
 
     $self->send_message($msg);
+
+    if ( defined $msg->{task} ) {
+        return $msg->{task};
+    }
+    else {
+        return $self->read_task_ids();
+    }
 }
 
 =method run
@@ -108,8 +115,9 @@ Subclasses should **not** override this method.
 sub run {
     my ($self) = @_;
 
-    my ( $conf, $context ) = $self->read_handshake();
-    $self->initialize( $conf, $context );
+    my ( $storm_conf, $context ) = $self->read_handshake();
+    $self->_setup_component( $storm_conf, $context );
+    $self->initialize( $storm_conf, $context );
 
     while (1) {
         my $msg = $self->read_command();

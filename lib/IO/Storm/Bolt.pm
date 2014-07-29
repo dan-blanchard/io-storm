@@ -121,7 +121,15 @@ sub emit ($$;$) {
             $msg->{task} = $args->{direct_task};
         }
 
-        $self->send_message($msg);
+    }
+
+    $self->send_message($msg);
+
+    if ( defined $msg->{task} ) {
+        return $msg->{task};
+    }
+    else {
+        return $self->read_task_ids();
     }
 }
 
@@ -179,6 +187,7 @@ sub run {
     my $tup;
 
     my ( $storm_conf, $context ) = $self->read_handshake();
+    $self->_setup_component( $storm_conf, $context );
     $self->initialize( $storm_conf, $context );
 
     try {
@@ -197,8 +206,9 @@ sub run {
     }
     catch {
         my $error = $_;
-        if ( $self->auto_fail && scalar( @{ $self->_current_tups } ) ) {
-            for $tup ( @{ self->_current_tups } ) {
+        if ( scalar( @{ $self->_current_tups } ) == 1 ) {
+            $tup = $self->_current_tups->[0];
+            if ( $self->auto_fail ) {
                 $self->fail($tup);
             }
         }
