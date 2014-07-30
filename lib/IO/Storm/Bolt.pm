@@ -102,11 +102,11 @@ sub emit ($$;$) {
     if ( defined($args) ) {
 
         # Add anchors to message if specified
-        if ( defined( $args->{anchors} ) && scalar( @{ $args->{anchors} } ) )
+        if ( defined( $args->{anchors} ) )
         {
             my $a;
             for $a ( @{ $args->{anchors} } ) {
-                if ( ref($a) eq 'Tuple' ) {
+                if ( ref($a) eq "IO::Storm::Tuple" ) {
                     $a = $a->id;
                 }
                 push( @$anchors, $a );
@@ -122,6 +122,8 @@ sub emit ($$;$) {
         }
 
     }
+
+    $msg->{anchors} = $anchors;
 
     $self->send_message($msg);
 

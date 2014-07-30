@@ -14,7 +14,7 @@ use warnings;
 use Data::Dumper;
 use IO::Storm::Tuple;
 use Test::MockObject;
-use Test::More tests => 21;
+use Test::More tests => 22;
 use Test::Output;
 use Log::Log4perl qw(:easy);
 use JSON::XS;
@@ -148,7 +148,7 @@ push( @stdin_retval, 'end' );
 sub test_bolt_emit_no_args { $bolt->emit( ["test"], {} ); }
 stdout_is(
     \&test_bolt_emit_no_args,
-    '{"command":"emit","tuple":["test"]}' . "\nend\n",
+    '{"anchors":[],"command":"emit","tuple":["test"]}' . "\nend\n",
     'bolt->emit() prints right output'
 );
 push( @stdin_retval, '[2]' );
@@ -156,9 +156,19 @@ push( @stdin_retval, 'end' );
 sub test_bolt_emit_stream { $bolt->emit( ["test"], { stream => 'foo' } ); }
 stdout_is(
     \&test_bolt_emit_stream,
-    '{"command":"emit","stream":"foo","tuple":["test"]}' . "\nend\n",
+    '{"anchors":[],"command":"emit","stream":"foo","tuple":["test"]}' . "\nend\n",
     'bolt->emit({stream => foo}) prints right output'
 );
+push( @stdin_retval, '[2]' );
+push( @stdin_retval, 'end' );
+sub test_bolt_emit_anchors { $bolt->emit( ["test"], { anchors => ["1", "2"] } ); }
+stdout_is(
+    \&test_bolt_emit_anchors,
+    '{"anchors":["1","2"],"command":"emit","tuple":["test"]}' . "\nend\n",
+    'bolt->emit({anchors => ["1", "2"]}) prints right output'
+);
+
+
 
 # cleanup pid file
 unlink($$);
