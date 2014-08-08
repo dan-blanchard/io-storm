@@ -4,7 +4,7 @@ IO::Storm - Perl support for Apache Storm
 
 # VERSION
 
-version 0.02
+version 0.06
 
 # SYNOPSIS
 
