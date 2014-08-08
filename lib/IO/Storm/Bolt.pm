@@ -1,7 +1,7 @@
 # ABSTRACT: The base class for all IO::Storm Bolts.
 
 package IO::Storm::Bolt;
-
+$IO::Storm::Bolt::VERSION = '0.06';
 # Imports
 use strict;
 use warnings;
@@ -45,46 +45,16 @@ has '_current_tups' => (
     init_arg => undef
 );
 
-=method initialize
-
-Called immediately after the initial handshake with Storm and before the main
-run loop. A good place to initialize connections to data sources.
-
-=cut
 
 sub initialize {
     my ( $self, $storm_conf, $context ) = @_;
 }
 
-=method process
-
-Process a single tuple of input. This should be overriden by subclasses
-
-=cut
 
 sub process {
     my ( $self, $tuple ) = @_;
 }
 
-=method emit
-
-Emit a tuple to a stream.
-
-:param tuple: the Tuple payload to send to Storm, should contain only
-            JSON-serializable data.
-:type tuple: arrayref
-:param stream: the ID of the stream to emit this tuple to. Specify
-               ``undef`` to emit to default stream.
-:type stream: scalar
-:param anchors: IDs of the tuples (or the <IO::Storm::Tuple> instances) which
-                the emitted tuples should be anchored to. If ``auto_anchor`` is
-                set and you have not specified ``anchors``, ``anchors`` will be
-                set to the incoming/most recent tuple ID(s).
-:type anchors: arrayref
-:param direct_task: the task to send the tuple to.
-:type direct_task: scalar
-
-=cut
 
 sub emit ($$;$) {
     my ( $self, $tuple, $args ) = @_;
@@ -135,11 +105,6 @@ sub emit ($$;$) {
     }
 }
 
-=method ack
-
-Acknowledge a tuple. Argument can be either a Tuple or an ID.
-
-=cut
 
 sub ack {
     my ( $self, $tuple ) = @_;
@@ -153,11 +118,6 @@ sub ack {
     $self->send_message( { command => 'ack', id => $tup_id } );
 }
 
-=method fail
-
-Fail a tuple. Argument can be either a Tuple or an ID.
-
-=cut
 
 sub fail {
     my ( $self, $tuple ) = @_;
@@ -172,17 +132,6 @@ sub fail {
     $self->send_message( { command => 'fail', id => $tup_id } );
 }
 
-=method run
-
-Main run loop for all bolts.
-
-Performs initial handshake with Storm and reads tuples handing them off
-to subclasses.  Any exceptions are caught and logged back to Storm
-prior to the Perl process exiting.
-
-Subclasses should **not** override this method.
-
-=cut
 
 sub run {
     my ($self) = @_;
@@ -220,3 +169,85 @@ sub run {
 }
 
 1;
+
+__END__
+
+=pod
+
+=head1 NAME
+
+IO::Storm::Bolt - The base class for all IO::Storm Bolts.
+
+=head1 VERSION
+
+version 0.06
+
+=head1 METHODS
+
+=head2 initialize
+
+Called immediately after the initial handshake with Storm and before the main
+run loop. A good place to initialize connections to data sources.
+
+=head2 process
+
+Process a single tuple of input. This should be overriden by subclasses
+
+=head2 emit
+
+Emit a tuple to a stream.
+
+:param tuple: the Tuple payload to send to Storm, should contain only
+            JSON-serializable data.
+:type tuple: arrayref
+:param stream: the ID of the stream to emit this tuple to. Specify
+               ``undef`` to emit to default stream.
+:type stream: scalar
+:param anchors: IDs of the tuples (or the <IO::Storm::Tuple> instances) which
+                the emitted tuples should be anchored to. If ``auto_anchor`` is
+                set and you have not specified ``anchors``, ``anchors`` will be
+                set to the incoming/most recent tuple ID(s).
+:type anchors: arrayref
+:param direct_task: the task to send the tuple to.
+:type direct_task: scalar
+
+=head2 ack
+
+Acknowledge a tuple. Argument can be either a Tuple or an ID.
+
+=head2 fail
+
+Fail a tuple. Argument can be either a Tuple or an ID.
+
+=head2 run
+
+Main run loop for all bolts.
+
+Performs initial handshake with Storm and reads tuples handing them off
+to subclasses.  Any exceptions are caught and logged back to Storm
+prior to the Perl process exiting.
+
+Subclasses should **not** override this method.
+
+=head1 AUTHORS
+
+=over 4
+
+=item *
+
+Cory G Watson <gphat@cpan.org>
+
+=item *
+
+Dan Blanchard <dblanchard@ets.org>
+
+=back
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2014 by Infinity Interactive, Inc.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut

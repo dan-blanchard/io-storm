@@ -1,77 +1,32 @@
 # ABSTRACT: The base class for all IO::Storm Spout.
 
 package IO::Storm::Spout;
-
+$IO::Storm::Spout::VERSION = '0.06';
 use Moo;
 use namespace::clean;
 
 extends 'IO::Storm';
 
-=method initialize
-
-Called immediately after the initial handshake with Storm and before the main
-run loop. A good place to initialize connections to data sources.
-
-=cut
 
 sub initialize {
     my ( $self, $storm_conf, $context ) = @_;
 }
 
-=method ack
-
-Called when a bolt acknowledges a tuple in the topology.
-
-=cut
 
 sub ack {
     my ( $self, $id ) = @_;
 }
 
-=method fail
-
-Called when a tuple fails in the topology
-
-A Spout can choose to emit the tuple again or ignore the fail. The default is
-to ignore.
-
-=cut
 
 sub fail {
     my ( $self, $id ) = @_;
 }
 
-=method next_tuple
-
-Implement this function to emit tuples as necessary.
-
-This function should not block, or Storm will think the spout is dead. Instead,
-let it return and streamparse will send a noop to storm, which lets it know the
-spout is functioning.
-
-=cut
 
 sub next_tuple {
     my ($self) = @_;
 }
 
-=method emit
-
-Emit a spout tuple message.
-
-:param tup: the tuple to send to Storm.  Should contain only
-            JSON-serializable data.
-:type tup: list
-:param tup_id: the ID for the tuple. Leave this blank for an
-               unreliable emit.
-:type tup_id: str
-:param stream: ID of the stream this tuple should be emitted to.
-               Leave empty to emit to the default stream.
-:type stream: str
-:param direct_task: the task to send the tuple to if performing a
-                    direct emit.
-:type direct_task: int
-=cut
 
 sub emit ($$;$) {
     my ( $self, $tuple, $args ) = @_;
@@ -100,17 +55,6 @@ sub emit ($$;$) {
     }
 }
 
-=method run
-
-Main run loop for all spouts.
-
-Performs initial handshake with Storm and reads tuples handing them off to
-subclasses.  Any exceptions are caught and logged back to Storm prior to the
-Perl process exiting.
-
-Subclasses should **not** override this method.
-
-=cut
 
 sub run {
     my ($self) = @_;
@@ -135,3 +79,91 @@ sub run {
 }
 
 1;
+
+__END__
+
+=pod
+
+=head1 NAME
+
+IO::Storm::Spout - The base class for all IO::Storm Spout.
+
+=head1 VERSION
+
+version 0.06
+
+=head1 METHODS
+
+=head2 initialize
+
+Called immediately after the initial handshake with Storm and before the main
+run loop. A good place to initialize connections to data sources.
+
+=head2 ack
+
+Called when a bolt acknowledges a tuple in the topology.
+
+=head2 fail
+
+Called when a tuple fails in the topology
+
+A Spout can choose to emit the tuple again or ignore the fail. The default is
+to ignore.
+
+=head2 next_tuple
+
+Implement this function to emit tuples as necessary.
+
+This function should not block, or Storm will think the spout is dead. Instead,
+let it return and streamparse will send a noop to storm, which lets it know the
+spout is functioning.
+
+=head2 emit
+
+Emit a spout tuple message.
+
+:param tup: the tuple to send to Storm.  Should contain only
+            JSON-serializable data.
+:type tup: list
+:param tup_id: the ID for the tuple. Leave this blank for an
+               unreliable emit.
+:type tup_id: str
+:param stream: ID of the stream this tuple should be emitted to.
+               Leave empty to emit to the default stream.
+:type stream: str
+:param direct_task: the task to send the tuple to if performing a
+                    direct emit.
+:type direct_task: int
+
+=head2 run
+
+Main run loop for all spouts.
+
+Performs initial handshake with Storm and reads tuples handing them off to
+subclasses.  Any exceptions are caught and logged back to Storm prior to the
+Perl process exiting.
+
+Subclasses should **not** override this method.
+
+=head1 AUTHORS
+
+=over 4
+
+=item *
+
+Cory G Watson <gphat@cpan.org>
+
+=item *
+
+Dan Blanchard <dblanchard@ets.org>
+
+=back
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2014 by Infinity Interactive, Inc.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut
