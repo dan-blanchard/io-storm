@@ -1,7 +1,7 @@
 # ABSTRACT: The base class for all IO::Storm Bolts.
 
 package IO::Storm::Bolt;
-$IO::Storm::Bolt::VERSION = '0.06';
+
 # Imports
 use strict;
 use warnings;

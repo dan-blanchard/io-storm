@@ -1,7 +1,7 @@
 # ABSTRACT: The base class for all IO::Storm Spout.
 
 package IO::Storm::Spout;
-$IO::Storm::Spout::VERSION = '0.06';
+
 use Moo;
 use namespace::clean;
 
