@@ -1,287 +1,152 @@
-# ABSTRACT: IO::Storm allows you to write Bolts and Spouts for Storm in Perl.
-
-package IO::Storm;
-
-# Imports
+use 5.010;
 use strict;
 use warnings;
-use v5.10;
-use IO::Handle qw(autoflush);
-use IO::File;
-use Log::Log4perl qw(:easy);
-use JSON::XS;
-use Data::Dumper;
-use IO::Storm::Tuple;
 
-# Setup Moo for object-oriented niceties
-use Moo;
-use namespace::clean;
-
-has '_pending_commands' => (
-    is      => 'rw',
-    default => sub { [] },
-);
-
-has '_pending_taskids' => (
-    is      => 'rw',
-    default => sub { [] },
-);
-
-has '_stdin' => (
-    is      => 'rw',
-    default => sub {
-        my $io = IO::Handle->new;
-        $io->fdopen( fileno(STDIN), 'r' );
-    }
-);
-
-has 'max_lines' => (
-    is      => 'rw',
-    default => 100
-);
-
-has 'max_blank_msgs' => (
-    is      => 'rw',
-    default => 500
-);
-
-has '_json' => (
-    is      => 'rw',
-    default => sub { JSON::XS->new->allow_blessed->convert_blessed }
-);
-
-has '_topology_name' => (
-    is        => 'rw',
-    init_args => undef
-);
-
-has '_task_id' => (
-    is        => 'rw',
-    init_args => undef
-);
-
-has '_component_name' => (
-    is        => 'rw',
-    init_args => undef
-);
-
-has '_debug' => (
-    is        => 'rw',
-    init_args => undef
-);
-
-has '_storm_conf' => (
-    is        => 'rw',
-    init_args => undef
-);
-
-has '_context' => (
-    is        => 'rw',
-    init_args => undef
-);
-
-my $logger = Log::Log4perl->get_logger('storm');
-
-=method _setup_component
-
-Add helpful instance variables to component after initial handshake with Storm.
-
-=cut
-
-sub _setup_component {
-    my ( $self, $storm_conf, $context ) = @_;
-    my $conf_is_hash = ref($storm_conf) eq ref {};
-    $self->_topology_name(
-        ( $conf_is_hash && exists( $storm_conf->{'topology.name'} ))
-        ? $storm_conf->{'topology.name'}
-        : ''
-    );
-    $self->_task_id( exists( $context->{taskid} ) ? $context->{taskid} : '' );
-    $self->_component_name('');
-    if ( exists( $context->{'task->component'} ) ) {
-        my $task_component = $context->{'task->component'};
-        if ( exists( $task_component->{ $self->_task_id } ) ) {
-            $self->_component_name( $task_component->{ $self->_task_id } );
-        }
-    }
-    $self->_debug(
-        ($conf_is_hash && exists( $storm_conf->{'topology.debug'} ))
-        ? $storm_conf->{'topology.debug'}
-        : 0
-    );
-    $self->_storm_conf($storm_conf);
-    $self->_context($context);
-}
-
-=method read_message
-
-Read a message from the ShellBolt.  Reads until it finds a "end" line.
-
-=cut
-
-sub read_message {
-    $logger->debug('start read_message');
-    my $self         = shift;
-    my $blank_lines  = 0;
-    my $message_size = 0;
-    my $line         = '';
-
-    my @messages = ();
-    while (1) {
-        $line = $self->_stdin->getline;
-        if ( defined($line) ) {
-            $logger->debug("read_message: line=$line");
-        }
-        else {
-            $logger->error( "Received EOF while trying to read stdin from "
-                    . "Storm, pipe appears to be broken, exiting." );
-            exit(1);
-        }
-        if ( $line eq "end\n" ) {
-            last;
-        }
-        elsif ( $line eq '' ) {
-            $logger->error( "Received EOF while trying to read stdin from "
-                    . "Storm, pipe appears to be broken, exiting." );
-            exit(1);
-        }
-        elsif ( $line eq "\n" ) {
-            $blank_lines++;
-            if ( $blank_lines % 1000 == 0 ) {
-                $logger->warn( "While trying to read a command or pending "
-                        . "task ID, Storm has instead sent $blank_lines "
-                        . "'\\n' messages." );
-                next;
-            }
-        }
-        chomp($line);
-        push( @messages, $line );
-    }
-
-    return $self->_json->decode( join( "\n", @messages ) );
-}
-
-sub read_task_ids {
-    my $self = shift;
-
-    if ( scalar( @{ $self->_pending_taskids } ) ) {
-        return shift( $self->_pending_taskids );
-    }
-    else {
-        my $msg = $self->read_message();
-        while ( ref($msg) ne 'ARRAY' ) {
-            push( $self->_pending_commands, $msg );
-            $msg = $self->read_message();
-        }
-
-        return $msg;
-    }
-}
-
-sub read_command {
-    my $self = shift;
-
-    if ( @{ $self->_pending_commands } ) {
-        return shift( $self->_pending_commands );
-    }
-    else {
-        my $msg = $self->read_message();
-        while ( ref($msg) eq 'ARRAY' ) {
-            push( $self->_pending_taskids, $msg );
-            $msg = $self->read_message();
-        }
-        return $msg;
-    }
-}
-
-=method read_tuple
-
-Turn the incoming Tuple structure into an <IO::Storm::Tuple>.
-
-=cut
-
-sub read_tuple {
-    my $self = shift;
-    $logger->debug('read_tuple');
-
-    my $tupmap = $self->read_command();
-
-    return IO::Storm::Tuple->new(
-        id        => $tupmap->{id},
-        component => $tupmap->{comp},
-        stream    => $tupmap->{stream},
-        task      => $tupmap->{task},
-        values    => $tupmap->{tuple}
-    );
-}
-
-=method read_handshake
-
-Read and process an initial handshake message from Storm
-
-=cut
-
-sub read_handshake {
-    my $self = shift;
-
-    # TODO: Figure out how to redirect stdout to ensure that print
-    # statements/functions won't crash the Storm Java worker
-
-    autoflush STDOUT 1;
-    autoflush STDERR 1;
-
-    my $msg = $self->read_message();
-    $logger->debug(
-        sub { 'Received initial handshake from Storm: ' . Dumper($msg) } );
-
-    # Write a blank PID file out to the pidDir
-    my $pid      = $$;
-    my $pid_dir  = $msg->{pidDir};
-    my $filename = $pid_dir . '/' . $pid;
-    open my $fh, '>', $filename
-        or die "Cant't write to '$filename': $!\n";
-    $fh->close;
-    $logger->debug("Sending process ID $pid to Storm");
-    $self->send_message( { pid => int($pid) } );
-
-    return [ $msg->{conf}, $msg->{context} ];
-}
-
-=method send_message
-
-Send a message to Storm, encoding it as JSON.
-
-=cut
-
-sub send_message {
-    my ( $self, $msg ) = @_;
-    say $self->_json->encode($msg);
-    say "end";
-}
-
-=method sync
-
-Send a sync command to Storm.
-
-=cut
-
-sub sync {
-    my $self = shift;
-
-    $self->send_message( { command => 'sync' } );
-}
-
-=method log
-
-Send a log command to Storm
-
-=cut
-
-sub log {
-    my $self    = shift;
-    my $message = shift;
-
-    $self->send_message( { command => 'log', msg => $message } );
-}
+package IO::Storm;
+# ABSTRACT: IO::Storm allows you to write Bolts and Spouts for Storm in Perl.
 
 1;
+__END__
+
+=encoding utf8
+
+
+=head1 SYNOPSIS
+
+    package SplitSentenceBolt;
+
+    use Moo;
+    use namespace::clean;
+
+    extends 'Storm::Bolt';
+
+    sub process {
+        my ($self, $tuple) = @_;
+
+        my @words = split(' ', $tuple->values->[0]);
+        foreach my $word (@words) {
+
+            $self->emit([ $word ]);
+        }
+
+    }
+
+    SplitSentenceBolt->new->run;
+
+
+=head1 DESCRIPTION
+
+IO::Storm allows you to leverage Storm's multilang support to write Bolts and
+Spouts in Perl.  As of version 0.02, the API is designed to very closely mirror
+that of the L<Streamparse Python library|http://streamparse.readthedocs.org/en/latest/api.html>.  The exception being that we don't currently support
+the C<BatchingBolt> class or the C<emit_many> methods.
+
+
+=head1 Bolts
+
+To create a Bolt, you want to extend the C<Storm::Bolt> class.
+
+    package SplitSentenceBolt;
+
+    use Moo;
+    use namespace::clean;
+
+    extends 'Storm::Bolt';
+
+
+=head2 Processing tuples
+
+To have your Bolt start processing tuples, you want to override the C<process>
+method, which takes a C<IO::Storm::Tuple> as its only argument.  This method
+should do any processing you want to perform on the tuple and then C<emit> its
+output.
+
+    sub process {
+        my ($self, $tuple) = @_;
+
+        my @words = split(' ', $tuple->values->[0]);
+        foreach my $word (@words) {
+
+            $self->emit([ $word ]);
+        }
+
+    }
+
+To actually start your Bolt, call the C<run> method, which will initialize the
+bolt and start the event loop.
+
+    SplitSentenceBolt->new->run;
+
+
+=head2 Automatic reliability
+
+By default, the Bolt will automatically handle acks, anchoring, and
+failures.  If you would like to customize the behavior of any of these things,
+you will need to set the C<auto_anchor>, C<auto_anchor>, or C<auto_fail>
+attributes to 0.  For more information about Storm's guaranteed message
+processing, please L<see their documentation|https://storm.incubator.apache.org/documentation/Guaranteeing-message-processing.html#what-is-storms-reliability-api>.
+
+
+=head1 Spouts
+
+To create a Spout, you want to extend the C<Storm::Spout> class.
+
+    package SentenceSpout;
+
+    use Moo;
+    use namespace::clean;
+
+    extends 'Storm::Spout';
+
+
+=head2 Emitting tuples
+
+To actually emit anything on your Spout, you have to implement the
+C<next_tuple> method.
+
+    my $sentences = ["a little brown dog",
+                     "the man petted the dog",
+                     "four score and seven years ago",
+                     "an apple a day keeps the doctor away",];
+    my $num_sentences = scalar(@$sentences);
+
+    sub nextI<tuple {
+        my ($self) = @>;
+
+        $self->emit( [ $sentences->[ rand($num_sentences) ] ] );
+
+    }
+
+To actually start your Spout, call the C<run> method, which will initialize the
+Spout and start the event loop.
+
+    SentenceSpout->new->run;
+
+
+=head1 Methods supported by Spouts and Bolts
+
+
+=head2 Custom initialization
+
+If you need to have some custom action happen when your component is being
+initialized, just override C<initialize> method, which receives the Storm
+configuration for the component and information about its place in the topology
+as its arguments.
+
+    sub initialize {
+        my ( $self, $storm_conf, $context ) = @_;
+    }
+
+
+=head2 Logging
+
+Use the C<log> method to send messages back to the Storm ShellBolt parent
+process which will be added to the general Storm log.
+
+    sub process {
+        my ($self, $tuple) = @_;
+        ...
+        $self->log("Working on $tuple");
+        ...
+    }
+

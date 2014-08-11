@@ -5,7 +5,7 @@ package IO::Storm::Spout;
 use Moo;
 use namespace::clean;
 
-extends 'IO::Storm';
+extends 'IO::Storm::Component';
 
 
 sub initialize {

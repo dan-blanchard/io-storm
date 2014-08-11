@@ -12,7 +12,7 @@ use Try::Tiny;
 use Moo;
 use namespace::clean;
 
-extends 'IO::Storm';
+extends 'IO::Storm::Component';
 
 # A boolean indicating whether or not the bolt should automatically
 # anchor emits to the incoming tuple ID. Tuple anchoring is how Storm
