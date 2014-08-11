@@ -2,6 +2,11 @@
 
 package IO::Storm::Spout;
 
+# Imports
+use strict;
+use warnings;
+use v5.14;
+
 use Moo;
 use namespace::clean;
 

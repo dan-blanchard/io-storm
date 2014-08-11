@@ -2,6 +2,11 @@
 
 package IO::Storm::Tuple;
 
+# Imports
+use strict;
+use warnings;
+use v5.14;
+
 # Setup Moo for object-oriented niceties
 use Moo;
 use namespace::clean;
