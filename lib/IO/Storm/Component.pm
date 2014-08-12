@@ -92,7 +92,7 @@ sub _setup_component {
     my ( $self, $storm_conf, $context ) = @_;
     my $conf_is_hash = ref($storm_conf) eq ref {};
     $self->_topology_name(
-        ( $conf_is_hash && exists( $storm_conf->{'topology.name'} ))
+        ( $conf_is_hash && exists( $storm_conf->{'topology.name'} ) )
         ? $storm_conf->{'topology.name'}
         : ''
     );
@@ -105,7 +105,7 @@ sub _setup_component {
         }
     }
     $self->_debug(
-        ($conf_is_hash && exists( $storm_conf->{'topology.debug'} ))
+        ( $conf_is_hash && exists( $storm_conf->{'topology.debug'} ) )
         ? $storm_conf->{'topology.debug'}
         : 0
     );
@@ -165,7 +165,7 @@ sub read_task_ids {
     my $self = shift;
 
     if ( scalar( @{ $self->_pending_taskids } ) ) {
-        return shift( $self->_pending_taskids );
+        return shift( @{ $self->_pending_taskids } );
     }
     else {
         my $msg = $self->read_message();
@@ -182,7 +182,7 @@ sub read_command {
     my $self = shift;
 
     if ( @{ $self->_pending_commands } ) {
-        return shift( $self->_pending_commands );
+        return shift( @{ $self->_pending_commands } );
     }
     else {
         my $msg = $self->read_message();
@@ -267,7 +267,6 @@ Send a sync command to Storm.
 
 sub sync {
     my $self = shift;
-
     $self->send_message( { command => 'sync' } );
 }
 
@@ -278,9 +277,7 @@ Send a log command to Storm
 =cut
 
 sub log {
-    my $self    = shift;
-    my $message = shift;
-
+    my ( $self, $message ) = @_;
     $self->send_message( { command => 'log', msg => $message } );
 }
 

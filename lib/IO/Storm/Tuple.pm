@@ -5,7 +5,7 @@ package IO::Storm::Tuple;
 # Imports
 use strict;
 use warnings;
-use v5.14;
+use v5.10;
 
 # Setup Moo for object-oriented niceties
 use Moo;

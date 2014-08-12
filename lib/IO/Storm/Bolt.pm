@@ -5,7 +5,7 @@ package IO::Storm::Bolt;
 # Imports
 use strict;
 use warnings;
-use v5.14;
+use v5.10;
 use Try::Tiny;
 
 # Setup Moo for object-oriented niceties
