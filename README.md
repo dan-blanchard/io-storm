@@ -99,8 +99,8 @@ To actually emit anything on your Spout, you have to implement the
                      "an apple a day keeps the doctor away",];
     my $num_sentences = scalar(@$sentences);
 
-    sub nextI<tuple {
-        my ($self) = @>;
+    sub next_tuple {
+        my ($self) = @_;
 
         $self->emit( [ $sentences->[ rand($num_sentences) ] ] );
 
