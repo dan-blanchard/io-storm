@@ -170,7 +170,7 @@ sub read_task_ids {
     else {
         my $msg = $self->read_message();
         while ( ref($msg) ne 'ARRAY' ) {
-            push( $self->_pending_commands, $msg );
+            push( @{$self->_pending_commands}, $msg );
             $msg = $self->read_message();
         }
 
@@ -187,7 +187,7 @@ sub read_command {
     else {
         my $msg = $self->read_message();
         while ( ref($msg) eq 'ARRAY' ) {
-            push( $self->_pending_taskids, $msg );
+            push( @{$self->_pending_taskids}, $msg );
             $msg = $self->read_message();
         }
         return $msg;
