@@ -4,7 +4,7 @@ IO::Storm - IO::Storm allows you to write Bolts and Spouts for Storm in Perl.
 
 # VERSION
 
-version 0.12
+version 0.13
 
 # SYNOPSIS
 
@@ -99,8 +99,8 @@ To actually emit anything on your Spout, you have to implement the
                      "an apple a day keeps the doctor away",];
     my $num_sentences = scalar(@$sentences);
 
-    sub nextI<tuple {
-        my ($self) = @>;
+    sub next_tuple {
+        my ($self) = @_;
 
         $self->emit( [ $sentences->[ rand($num_sentences) ] ] );
 
