@@ -59,7 +59,7 @@ sub process {
 sub emit ($$;$) {
     my ( $self, $tuple, $args ) = @_;
 	
-	$args = $args // {};
+    $args = $args // {};
     my $msg = { command => 'emit', tuple => $tuple };
 
     my $anchors = [];
