@@ -58,39 +58,32 @@ sub process {
 
 sub emit ($$;$) {
     my ( $self, $tuple, $args ) = @_;
-
+	
+    $args = $args // {};
     my $msg = { command => 'emit', tuple => $tuple };
 
-    my $anchors;
+    my $anchors = [];
     if ( $self->auto_anchor ) {
-        $anchors = $self->_current_tups;
+        $anchors = $self->_current_tups // [];
     }
-    else {
-        $anchors = [];
+    unless ( defined( $args->{anchors} ) ) {
+    	$args->{anchors} = $anchors;
     }
 
-    if ( defined($args) ) {
-
-        # Add anchors to message if specified
-        if ( defined( $args->{anchors} ) )
-        {
-            my $a;
-            for $a ( @{ $args->{anchors} } ) {
-                if ( ref($a) eq "IO::Storm::Tuple" ) {
-                    $a = $a->id;
-                }
-                push( @$anchors, $a );
-            }
+    my $a;
+    for $a ( @{ $args->{anchors} } ) {
+        if ( ref($a) eq "IO::Storm::Tuple" ) {
+            $a = $a->id;
         }
+        push( @$anchors, $a );
+    }
 
-        if ( defined( $args->{stream} ) ) {
-            $msg->{stream} = $args->{stream};
-        }
+    if ( defined( $args->{stream} ) ) {
+        $msg->{stream} = $args->{stream};
+    }
 
-        if ( defined( $args->{direct_task} ) ) {
-            $msg->{task} = $args->{direct_task};
-        }
-
+    if ( defined( $args->{direct_task} ) ) {
+        $msg->{task} = $args->{direct_task};
     }
 
     $msg->{anchors} = $anchors;
