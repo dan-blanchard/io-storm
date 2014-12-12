@@ -14,15 +14,21 @@ use warnings;
 use Data::Dumper;
 use IO::Storm::Tuple;
 use Test::MockObject;
-use Test::More tests => 14;
+use Test::More tests => 15;
 use Test::Output;
 use Log::Log4perl qw(:easy);
 use JSON::XS;
 Log::Log4perl->easy_init($ERROR);
 
+# Make Test::More work with UTF-8 errors
+if ( Test::Builder->VERSION < 2 ) {
+    foreach my $method (qw(output failure_output)) {
+        binmode Test::More->builder->$method(), ':encoding(UTF-8)';
+    }
+}
+
 my $stdin        = Test::MockObject->new();
 my @stdin_retval = ();
-my $json         = JSON::XS->new->allow_blessed->convert_blessed->canonical;
 
 $stdin->mock(
     'getline',
@@ -41,11 +47,8 @@ BEGIN { use_ok('IO::Storm::Component'); }
 
 ### Component tests
 
-my $component = IO::Storm::Component->new(
-    {   _stdin => $stdin,
-        _json  => $json
-    }
-);
+my $component = IO::Storm::Component->new( { _stdin => $stdin } );
+$component->_json->canonical;
 my $result;
 
 # Test read_message with simple data
@@ -64,22 +67,16 @@ is( ref($result), 'ARRAY', 'read_task_ids() returns array' );
 is( $result->[0], '2',     'read_task_ids() return correct value' );
 
 # read_command
-$component = IO::Storm::Component->new(
-    {   _stdin => $stdin,
-        _json  => $json
-    }
-);
+$component = IO::Storm::Component->new( { _stdin => $stdin } );
+$component->_json->canonical;
 push( @stdin_retval, '{"test":"test0"}' );
 push( @stdin_retval, 'end' );
 $result = $component->read_command;
 is( ref($result), 'HASH', 'read_command() returns array' );
 
 # read_tuple
-$component = IO::Storm::Component->new(
-    {   _stdin => $stdin,
-        _json  => $json
-    }
-);
+$component = IO::Storm::Component->new( { _stdin => $stdin } );
+$component->_json->canonical;
 push( @stdin_retval,
     '{"id":"test_id","stream":"test_stream","comp":"test_comp","tuple":["test"],"task":"test_task"}'
 );
@@ -112,6 +109,16 @@ stdout_is(
     \&test_send_message,
     '{"test":"test"}' . "\nend\n",
     'send_message() returns test output'
+);
+
+# send_message (with utf8)
+sub test_send_message_utf8 {
+    $component->send_message( { utf8 => "\x{263a}" } );
+}
+stdout_is(
+    \&test_send_message_utf8,
+    "{\"utf8\":\"\x{263a}\"}" . "\nend\n",
+    "send_message() returns \x{263a} output"
 );
 
 # sync

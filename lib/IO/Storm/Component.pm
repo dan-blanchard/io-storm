@@ -13,6 +13,9 @@ use JSON::XS;
 use Data::Dumper;
 use IO::Storm::Tuple;
 
+# Setup STDIN/STDOUT/STDERR to use UTF8
+use open qw/:std :utf8/;
+
 # Setup Moo for object-oriented niceties
 use Moo;
 use namespace::clean;

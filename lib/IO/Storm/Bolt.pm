@@ -12,6 +12,7 @@ use Try::Tiny;
 use Moo;
 use namespace::clean;
 
+
 extends 'IO::Storm::Component';
 
 # A boolean indicating whether or not the bolt should automatically
@@ -58,7 +59,7 @@ sub process {
 
 sub emit ($$;$) {
     my ( $self, $tuple, $args ) = @_;
-	
+
     $args = $args // {};
     my $msg = { command => 'emit', tuple => $tuple };
 
