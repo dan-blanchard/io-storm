@@ -4,7 +4,7 @@ IO::Storm - IO::Storm allows you to write Bolts and Spouts for Storm in Perl.
 
 # VERSION
 
-version 0.13
+version 0.14
 
 # SYNOPSIS
 
