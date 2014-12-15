@@ -13,12 +13,14 @@ use JSON::XS;
 use Data::Dumper;
 use IO::Storm::Tuple;
 
-# Setup STDIN/STDOUT/STDERR to use UTF8
-use open qw/:std :utf8/;
-
 # Setup Moo for object-oriented niceties
 use Moo;
 use namespace::clean;
+
+# Setup STDIN/STDOUT/STDERR to use UTF8
+binmode STDERR, ':utf8';
+binmode STDIN,  ':encoding(UTF-8)';
+binmode STDOUT, ':utf8';
 
 has '_pending_commands' => (
     is      => 'rw',
@@ -173,7 +175,7 @@ sub read_task_ids {
     else {
         my $msg = $self->read_message();
         while ( ref($msg) ne 'ARRAY' ) {
-            push( @{$self->_pending_commands}, $msg );
+            push( @{ $self->_pending_commands }, $msg );
             $msg = $self->read_message();
         }
 
@@ -190,7 +192,7 @@ sub read_command {
     else {
         my $msg = $self->read_message();
         while ( ref($msg) eq 'ARRAY' ) {
-            push( @{$self->_pending_taskids}, $msg );
+            push( @{ $self->_pending_taskids }, $msg );
             $msg = $self->read_message();
         }
         return $msg;
