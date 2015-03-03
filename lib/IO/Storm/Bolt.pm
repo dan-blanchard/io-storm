@@ -12,7 +12,6 @@ use Try::Tiny;
 use Moo;
 use namespace::clean;
 
-
 extends 'IO::Storm::Component';
 
 # A boolean indicating whether or not the bolt should automatically
@@ -46,16 +45,13 @@ has '_current_tups' => (
     init_arg => undef
 );
 
-
 sub initialize {
     my ( $self, $storm_conf, $context ) = @_;
 }
 
-
 sub process {
     my ( $self, $tuple ) = @_;
 }
-
 
 sub emit ($$;$) {
     my ( $self, $tuple, $args ) = @_;
@@ -68,11 +64,10 @@ sub emit ($$;$) {
         $anchors = $self->_current_tups // [];
     }
     unless ( defined( $args->{anchors} ) ) {
-    	$args->{anchors} = $anchors;
+        $args->{anchors} = $anchors;
     }
 
-    my $a;
-    for $a ( @{ $args->{anchors} } ) {
+    for my $a ( @{ $args->{anchors} } ) {
         if ( ref($a) eq "IO::Storm::Tuple" ) {
             $a = $a->id;
         }
@@ -99,7 +94,6 @@ sub emit ($$;$) {
     }
 }
 
-
 sub ack {
     my ( $self, $tuple ) = @_;
     my $tup_id;
@@ -111,7 +105,6 @@ sub ack {
     }
     $self->send_message( { command => 'ack', id => $tup_id } );
 }
-
 
 sub fail {
     my ( $self, $tuple ) = @_;
@@ -126,7 +119,6 @@ sub fail {
     $self->send_message( { command => 'fail', id => $tup_id } );
 }
 
-
 sub run {
     my ($self) = @_;
     my $tup;
@@ -139,9 +131,15 @@ sub run {
         while (1) {
             $tup = $self->read_tuple();
             $self->_current_tups( [$tup] );
-            $self->process($tup);
-            if ( $self->auto_ack ) {
-                $self->ack($tup);
+            if ( $tup->{task} == -1 && $tup->{stream} == '__heartbeat' ) {
+                $self->send_message( { command => 'sync' } );
+            }
+            else {
+                $self->process($tup);
+                if ( $self->auto_ack ) {
+                    $self->ack($tup);
+                }
+
             }
 
             # reset so that we don't accidentally fail the wrong tuples
