@@ -131,7 +131,7 @@ sub run {
         while (1) {
             $tup = $self->read_tuple();
             $self->_current_tups( [$tup] );
-            if ( $tup->{task} == -1 && $tup->{stream} == '__heartbeat' ) {
+            if ( $tup->{task} == -1 && $tup->{stream} eq '__heartbeat' ) {
                 $self->send_message( { command => 'sync' } );
             }
             else {
